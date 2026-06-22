@@ -1,0 +1,14 @@
+# Ignore everything by default.
+*
+
+# Allow git metadata files in this repository root.
+!.gitignore
+
+# Allow directories so git can recurse into them.
+!*/
+
+# Track source/config/script files only.
+!*.md
+!*.py
+!*.sh
+!*.yaml
