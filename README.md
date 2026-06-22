@@ -1,86 +1,120 @@
-# OBBSeg_final
+# OBBSeg
 
-OBBSeg_final is an oriented bounding box guided medical image segmentation project based on SAM2. The current training entry uses `torchrun` with DistributedDataParallel, and the evaluation entry reports metrics only. Evaluation visualization and prediction image saving are disabled.
+OBBSeg is a medical image segmentation project using prompt masks such as Box, Point, Scribble, and Circle. The training entry uses `torchrun` with DistributedDataParallel. The evaluation entry reports metrics only and does not save prediction visualizations.
 
-## Directory Layout
+All paths below are relative to a cloned project directory:
+
+```sh
+cd OBBSeg
+```
+
+## Project Layout
 
 ```text
-OBBSeg_final/
-├── dataset/                 # Raw and pre-processed datasets
-├── pretrain/                # SAM2 checkpoints, for example sam2_hiera_large.pt
-├── sam2/                    # SAM2 implementation
-├── sam2_configs/            # SAM2 yaml configs
+OBBSeg/
+├── dataset/
+├── pretrain/
+├── sam2/
+├── sam2_configs/
 └── source/
-    ├── train.py             # Training entry
-    ├── train_torchrun.sh    # Multi-GPU launch script
-    ├── test.py              # Evaluation entry
-    ├── model.py             # OBBSeg model
-    ├── dataset.py           # Dataset loaders
-    ├── preprocess.py        # Dataset preprocessing
-    └── utils.py             # Losses and OBB utilities
+    ├── train.py
+    ├── train_torchrun.sh
+    ├── test.py
+    ├── model.py
+    ├── dataset.py
+    ├── preprocess.py
+    └── utils.py
 ```
 
-## Environment
+## Environment Setup
 
-Use the existing conda environment on the server:
+Create a new conda environment and install the dependencies listed in `source/requirements.txt`:
 
 ```sh
-cd /mnt/d/workstation/ExpHome/OBBMed/OBBSeg_final/source
-/root/anaconda3/bin/python --version
+conda create -n obbseg python=3.11 -y
+conda activate obbseg
+pip install -r source/requirements.txt
 ```
 
-The launch script uses:
+## Pretrained Checkpoint and SAM2 Config
+
+Place the SAM2 checkpoint under:
 
 ```text
-/root/anaconda3/bin/python
-/root/anaconda3/bin/torchrun
+pretrain/
 ```
 
-Before training, check GPU visibility:
-
-```sh
-nvidia-smi
-CUDA_DEVICES=0,1 NPROC_PER_NODE=2 sh train_torchrun.sh --help
-```
-
-## Data and Checkpoints
-
-Expected dataset layout before preprocessing:
+Different SAM2 variants can be used, such as tiny, small, base-plus, or large. Select the matching yaml file from:
 
 ```text
-dataset/<DatasetName>/TrainDataset
-dataset/<DatasetName>/TestDataset
+sam2_configs/
+├── sam2_hiera_t.yaml
+├── sam2_hiera_s.yaml
+├── sam2_hiera_b+.yaml
+└── sam2_hiera_l.yaml
 ```
 
-For `SUN-SEG_Pre`, the code also supports:
+The checkpoint path and corresponding SAM2 config should match the selected backbone variant. They are configured in `source/train.py`, `source/test.py`, and the SAM2 build/config code.
+
+## Dataset Format and Preprocessing
+
+The training code expects preprocessed datasets in this target structure:
 
 ```text
-TestEasyDataset
-TestHardDataset
+dataset/<DatasetName>-Processed/
+├── TrainDataset/
+│   ├── Frame/
+│   ├── GT/
+│   ├── OBB/
+│   ├── Box/
+│   ├── Coord/
+│   ├── Scribble/
+│   ├── Circle/
+│   └── Point/
+└── TestDataset/
+    ├── Frame/
+    ├── GT/
+    ├── OBB/
+    ├── Box/
+    ├── Coord/
+    ├── Scribble/
+    ├── Circle/
+    └── Point/
 ```
 
-The training script automatically preprocesses the dataset if this directory is missing:
+`Coord/` contains OBB coordinate text files. Each line stores one OBB as four points:
 
 ```text
-dataset/<DatasetName>-Processed
+x1,y1;x2,y2;x3,y3;x4,y4
 ```
 
-The SAM2 checkpoint path is fixed in the config:
+The current project supports FSPD (`PraNetDataset`) and SUN-SEG. For other datasets, use `source/preprocess.py` to convert your raw dataset into the target `*-Processed` structure above before training or testing.
+
+For SUN-SEG, the code also supports these processed test splits:
 
 ```text
-pretrain/sam2_hiera_large.pt
+TestEasyDataset/
+TestHardDataset/
+TestDataset/
 ```
+
+If `dataset/<DatasetName>-Processed` does not exist, `source/train.py` will try to run preprocessing automatically from the corresponding raw dataset directory.
 
 ## Training
 
-Recommended launch command:
+Enter the source directory:
 
 ```sh
-cd /mnt/d/workstation/ExpHome/OBBMed/OBBSeg_final/source
+cd source
+```
+
+Launch multi-GPU training:
+
+```sh
 CUDA_DEVICES=0,1 NPROC_PER_NODE=2 sh train_torchrun.sh
 ```
 
-Default script parameters:
+Default arguments in `source/train_torchrun.sh`:
 
 ```text
 epoch: 20
@@ -94,7 +128,7 @@ prompt_mode: Box
 save_path: SAM2
 ```
 
-Override parameters by appending normal `train.py` arguments:
+Override training arguments by appending normal `train.py` arguments:
 
 ```sh
 CUDA_DEVICES=0,1 NPROC_PER_NODE=2 sh train_torchrun.sh \
@@ -105,14 +139,23 @@ CUDA_DEVICES=0,1 NPROC_PER_NODE=2 sh train_torchrun.sh \
   --save_path SAM2
 ```
 
-Supported prompt modes in the current code:
+If you use a newly created conda environment, point the launch script to that environment:
+
+```sh
+PYTHON_BIN="$(which python)" \
+TORCHRUN_BIN="$(which torchrun)" \
+CUDA_DEVICES=0,1 \
+NPROC_PER_NODE=2 \
+sh train_torchrun.sh
+```
+
+Supported prompt modes:
 
 ```text
 Point
 Box
 Scribble
 Circle
-OBB
 ```
 
 Training outputs:
@@ -123,15 +166,20 @@ source/SAM2/<DatasetName>/log/
 source/SAM2/<DatasetName>/model-<PromptMode>.pt
 ```
 
-Only rank 0 writes logs, runs evaluation after each epoch, and saves the best checkpoint.
+Only rank 0 writes logs, runs epoch-end evaluation, and saves the best checkpoint.
 
 ## Evaluation
 
-Run evaluation after a checkpoint is available:
+Enter the source directory:
 
 ```sh
-cd /mnt/d/workstation/ExpHome/OBBMed/OBBSeg_final/source
-CUDA_VISIBLE_DEVICES=0 /root/anaconda3/bin/python test.py \
+cd source
+```
+
+Run evaluation:
+
+```sh
+CUDA_VISIBLE_DEVICES=0 python test.py \
   --batchsize 64 \
   --num_worker 4 \
   --test_dataset PraNetDataset \
@@ -139,22 +187,21 @@ CUDA_VISIBLE_DEVICES=0 /root/anaconda3/bin/python test.py \
   --load_path SAM2/PraNetDataset
 ```
 
-Important: `--load_path` should point to the directory containing:
+`--load_path` should point to the directory containing:
 
 ```text
 model-<PromptMode>.pt
 ```
 
-For example, with `--prompt_mode Box`, the evaluation script loads:
+For example, with `--prompt_mode Box`, the script loads:
 
 ```text
 SAM2/PraNetDataset/model-Box.pt
 ```
 
-Evaluation prints:
+Eval metrics:
 
 ```text
-cnt
 mae
 dice
 iou
@@ -162,68 +209,4 @@ hd95
 Inference Time
 ```
 
-The evaluation script no longer saves prediction images or temporary visualization files.
-
-## Common Commands
-
-Use GPU 4 and 5:
-
-```sh
-CUDA_DEVICES=4,5 NPROC_PER_NODE=2 sh train_torchrun.sh
-```
-
-Use one GPU for quick debugging:
-
-```sh
-CUDA_DEVICES=0 NPROC_PER_NODE=1 sh train_torchrun.sh --epoch 1 --batchsize 2 --num_worker 0
-```
-
-Use a different distributed port if another job is already using the default:
-
-```sh
-MASTER_PORT=29515 CUDA_DEVICES=0,1 NPROC_PER_NODE=2 sh train_torchrun.sh
-```
-
-Check active training processes:
-
-```sh
-ps -eo pid,ppid,pgid,sid,stat,etime,cmd | grep -E "train_torchrun|torchrun|source/train.py| train.py" | grep -v grep
-```
-
-Check recent training log:
-
-```sh
-tail -80 train.log
-```
-
-## Troubleshooting
-
-If `sh train_torchrun.sh` reports CUDA unavailable, check:
-
-```sh
-nvidia-smi
-CUDA_DEVICES=0,1 /root/anaconda3/bin/python - <<'PY'
-import os
-import torch
-print(os.environ.get("CUDA_VISIBLE_DEVICES"))
-print(torch.cuda.is_available())
-print(torch.cuda.device_count())
-PY
-```
-
-If `torchrun` cannot be found, use the launch script instead of running bare `torchrun`; it calls `/root/anaconda3/bin/torchrun` directly.
-
-If another training job is already using port `29500`, set a different `MASTER_PORT`.
-
-## Git Tracking
-
-This directory is an independent git repository. The `.gitignore` is configured to track only:
-
-```text
-.py
-.sh
-.yaml
-.gitignore
-```
-
-Large data, checkpoints, logs, pycache, and README files are ignored by default.
+The evaluation script does not save prediction images or visualization files.
