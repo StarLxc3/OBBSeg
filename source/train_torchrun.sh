@@ -3,8 +3,8 @@ set -eu
 
 cd "$(dirname "$0")"
 
-CUDA_DEVICES="${CUDA_DEVICES:-0,1}"
-NPROC_PER_NODE="${NPROC_PER_NODE:-2}"
+CUDA_DEVICES="${CUDA_DEVICES:-0,1,2,3}"
+NPROC_PER_NODE="${NPROC_PER_NODE:-4}"
 MASTER_PORT="${MASTER_PORT:-29500}"
 PYTHON_BIN="${PYTHON_BIN:-/root/anaconda3/bin/python}"
 TORCHRUN_BIN="${TORCHRUN_BIN:-/root/anaconda3/bin/torchrun}"
@@ -35,7 +35,7 @@ PY
   --weight_decay 0.0005 \
   --clip 0.5 \
   --num_worker 4 \
-  --train_dataset PraNetDataset \
-  --prompt_mode Box \
+  --train_dataset FSPD-Dataset \
+  --prompt_mode Point \
   --save_path SAM2 \
   "$@"

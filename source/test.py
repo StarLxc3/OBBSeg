@@ -16,6 +16,30 @@ from model import OBBSeg
 from dataset import TestData
 from medpy.metric.binary import hd95
 
+DATASET_ALIASES = {
+    'FSPD-Dataset': 'PraNetDataset',
+}
+
+
+def resolve_existing_dataset(dataset):
+    processed_path = '../dataset/'+dataset+'-Processed'
+    if os.path.exists(processed_path):
+        return dataset
+    alias = DATASET_ALIASES.get(dataset)
+    if alias and os.path.exists('../dataset/'+alias+'-Processed'):
+        return alias
+    return dataset
+
+
+def resolve_existing_load_path(load_path):
+    if os.path.exists(load_path):
+        return load_path
+    for dataset, alias in DATASET_ALIASES.items():
+        old_load_path = load_path.replace(dataset, alias)
+        if old_load_path != load_path and os.path.exists(old_load_path):
+            return old_load_path
+    return load_path
+
 class Test(object):
     def __init__(self, cfg):
         self.start_event = torch.cuda.Event(enable_timing=True)
@@ -69,15 +93,16 @@ if __name__=='__main__':
     parser.add_argument('--num_worker', type=int,
                         default=4, help='decay rate of learning rate')
     parser.add_argument('--test_dataset', type=str,
-                        default='PraNetDataset', help='train dataset')
+                        default='FSPD-Dataset', help='train dataset')
     parser.add_argument('--prompt_mode', type=str,
                         default='Circle', help='class of prompt mask') # option = ['Point','Box','Scribble','Circle']
     parser.add_argument('--load_path', type=str,
-                        default='SAM2')  # set the path of snapshot model
+                        default='SAM2/FSPD-Dataset')  # set the path of snapshot model
     option = parser.parse_args()
     
     prompt_mode = option.prompt_mode
-    dataset = option.test_dataset
+    dataset = resolve_existing_dataset(option.test_dataset)
+    load_path = resolve_existing_load_path(option.load_path)
     
     class Config:
         def __init__(self, backbone, testset, prompt_mode):
@@ -102,7 +127,7 @@ if __name__=='__main__':
             self.mode           = 'test'
             self.batch_size     = option.batchsize
             self.num_workers    = option.num_worker
-            self.snapshot       = option.load_path + '/model-'+self.prompt_mode+'.pt'
+            self.snapshot       = load_path + '/model-'+self.prompt_mode+'.pt'
             self.sam2_checkpoint_path = "../pretrain/sam2_hiera_large.pt"
         
     Test(Config('SAM2', dataset, prompt_mode)).test_prediction()    

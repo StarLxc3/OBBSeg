@@ -28,6 +28,20 @@ from dataset import TestData, TrainData
 
 rng = np.random.default_rng(seed=134)
 
+DATASET_ALIASES = {
+    'FSPD-Dataset': 'PraNetDataset',
+}
+
+
+def resolve_existing_dataset(dataset):
+    processed_path = '../dataset/'+dataset+'-Processed'
+    if os.path.exists(processed_path):
+        return dataset
+    alias = DATASET_ALIASES.get(dataset)
+    if alias and os.path.exists('../dataset/'+alias+'-Processed'):
+        return alias
+    return dataset
+
 if os.environ.get('DETECT_ANOMALY') == '1':
     torch.autograd.set_detect_anomaly(True)
 
@@ -213,16 +227,16 @@ if __name__=='__main__':
     parser.add_argument('--num_worker', type=int,
                         default=4, help='decay rate of learning rate')
     parser.add_argument('--train_dataset', type=str,
-                        default='PraNetDataset', help='train dataset')
+                        default='FSPD-Dataset', help='train dataset')
     parser.add_argument('--prompt_mode', type=str,
-                        default='Circle', help='class of prompt mask') # option = ['Point','Box','Scribble','Circle']
+                        default='Point', help='class of prompt mask') # option = ['Point','Box','Scribble','Circle']
     parser.add_argument('--save_path', type=str,
                         default='SAM2')
     option = parser.parse_args()
     distributed, local_rank, rank, world_size = init_distributed()
 
     prompt_mode = option.prompt_mode
-    dataset = option.train_dataset
+    dataset = resolve_existing_dataset(option.train_dataset)
     if not os.path.exists('../dataset/'+dataset+'-Processed'):
     # if os.path.exists('../dataset/'+dataset+'-Processed'):
         if rank == 0:
