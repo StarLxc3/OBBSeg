@@ -87,9 +87,11 @@ class Test(object):
             print(f'Inference Time: {inference_time} ms')
 
 if __name__=='__main__':
+    os.environ ["CUDA_VISIBLE_DEVICES"] = '0,1'
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--batchsize', type=int,
-                        default=64, help='training batch size')
+                        default=32, help='training batch size')
     parser.add_argument('--num_worker', type=int,
                         default=4, help='decay rate of learning rate')
     parser.add_argument('--test_dataset', type=str,
