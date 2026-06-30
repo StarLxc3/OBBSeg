@@ -29,9 +29,9 @@ PY
   --master_port "${MASTER_PORT}" \
   --nproc_per_node "${NPROC_PER_NODE}" \
   train.py \
-  --epoch 20 \
+  --epoch 50 \
   --lr 0.001 \
-  --batchsize 8 \
+  --batchsize 10 \
   --weight_decay 0.0005 \
   --clip 0.5 \
   --num_worker 4 \

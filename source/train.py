@@ -215,7 +215,7 @@ if __name__=='__main__':
     # Our model have to use at less 48 gb memory, pls make sure have enough config
     parser = argparse.ArgumentParser()
     parser.add_argument('--epoch', type=int,
-                        default=20, help='epoch number')
+                        default=50, help='epoch number')
     parser.add_argument('--lr', type=float,
                         default=0.001, help='learning rate')
     parser.add_argument('--batchsize', type=int,
