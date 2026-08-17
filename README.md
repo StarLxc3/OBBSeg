@@ -1,4 +1,9 @@
 # OBBSeg
+[![arXiv](https://img.shields.io/badge/arXiv-2607.06007-b31b1b.svg)](https://arxiv.org/abs/2607.06007)
+
+🎉 **This work has been accepted to the European Conference on Computer Vision (ECCV) 2026.**
+
+📄 **Paper:** [arXiv:2607.06007](https://arxiv.org/abs/2607.06007)
 
 OBBSeg is a medical image segmentation project using prompt masks such as Box, Point, Scribble, and Circle. The training entry uses `torchrun` with DistributedDataParallel. The evaluation entry reports metrics only and does not save prediction visualizations.
 
